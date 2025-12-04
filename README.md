@@ -2,5 +2,5 @@
 
 **Install Prometheus:**
 ```bash
-curl -L https://github.com/amf95/linux-admin-public/blob/main/install-prometheus-latest.sh | bash
+curl -L https://raw.githubusercontent.com/amf95/linux-admin-public/refs/heads/main/install-prometheus-latest.sh| bash
 ```
