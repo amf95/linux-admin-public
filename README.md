@@ -1,2 +1,6 @@
 # linux-admin-public
-share my work
+
+**Install Prometheus:**
+```bash
+curl -L https://git.io/Jt0fZ | bash
+```
