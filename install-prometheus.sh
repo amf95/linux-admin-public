@@ -1,44 +1,53 @@
 
 #!/bin/bash
 
-
-# Author: Ahmed Fawzy(Github: amf95).
 echo ""
 echo "Author: Ahmed Fawzy (Github: amf95)"
 echo ""
 
-# This script installs only prometheus linux-amd64.
+# Target: linux-amd64 with systemd.
+
+# This script automates the installation of Prometheus on Linux systems.
 
 
-# "Usage: $0 [--purge | --uninstall | --local FILE]"
+####################################################################################
+
+# Features and Usage:
+
+# Allow user to choose port during installation (default is 9090).
+
+# Install Prometheus latest version from GitHub releases or a specific version:
+# bash ./install-prometheus.sh
+
+# Install from a local tar.gz file provided by the user:
+# Note: The local file must match the pattern 'prometheus-X.Y.Z.linux-amd64.tar.gz'.
+# bash ./install-prometheus.sh --local prometheus-3.7.3.linux-amd64.tar.gz
+
+# Uninstall Prometheus while keeping data:
+# Note: The script offers to backup existing installation before uninstalling.
+# bash ./install-prometheus.sh --uninstall
+
+# Purge Prometheus installation and all data:
+# Note: The script offers to backup existing installation before purge.
+# bash ./install-prometheus.sh --purge
+
+####################################################################################
 
 
 #===================================================================================
-# Script Purpose: Automates the installation of the latest Prometheus version on Linux
+#                             Script Safety and Setup
 #===================================================================================
-
-
-#===================================================================================
-#                                    Requirements
-#===================================================================================
-# - Bash shell
-# - Root privileges
-# - systemd-based Linux distribution and tar
-# - Internet connection, curl, jq and sha256sum for github installation mode
-#===================================================================================
-
 
 #=================== Script Safety Settings =====================
-# Exit on error (-e): Script will exit if any command fails
-# Exit on undefined variable (-u): Script will exit if undefined variable is used
-# Exit on pipe failures (-o pipefail): If any command in a pipe fails, pipe fails
+# Enable strict error handling
 set -euo pipefail
 
-# Set Internal Field Separator to newline and tab for safer iteration
+#=================== IFS Setting ====================
+# Set Internal Field Separator to handle spaces in filenames
 IFS=$'\n\t'
 
 #=================== Colorized Output Setup ====================
-# Check if stdout is a terminal
+# Check if output is a terminal to enable colors
 if [ -t 1 ]; then
     RED=$(tput setaf 1)
     GREEN=$(tput setaf 2)
@@ -60,6 +69,11 @@ else
 fi
 
 #===================================================================================
+#                        End of Script Safety and Setup
+#===================================================================================
+
+
+#===================================================================================
 #                             Helping Functions Section
 #===================================================================================
 
@@ -70,6 +84,10 @@ success() { echo -e "${GREEN}${BOLD}[OK]${RESET} $*"; }
 warn()    { echo -e "${YELLOW}${BOLD}[WARN]${RESET} $*"; }
 error()   { echo -e "${RED}${BOLD}[ERROR]${RESET} $*" >&2; }
 
+#=================== Backup Old Installation Function ====================
+# Function: backup_old_installation
+# Purpose: Backs up existing Prometheus installation if it exists
+# Prompts user for confirmation before creating backup
 backup_old_installation() {
     if [ -d "/opt/monitoring/prometheus" ]; then
         warn "Existing Prometheus installation detected." >&2
@@ -93,10 +111,13 @@ backup_old_installation() {
     fi # End of: if /opt/monitoring/prometheus exists
 } # end of: backup_old_installation function
 
+
 #=================== Remove Old Installation Function ====================
 # Function: remove_old_installation
-# Purpose: Safely removes old Prometheus installation
-# Prompts user for confirmation if data directory exists
+# Purpose: Removes existing Prometheus installation based on user choice
+# Parameters:
+#   $1 (action): "purge" to remove all data and configs, "uninstall" to remove binaries only
+# Returns: "success", "not_installed", "cancelled", or "not_found"
 remove_old_installation() {
     # Check if argument is provided
     if [ -z "$1" ]; then
@@ -174,8 +195,9 @@ remove_old_installation() {
 
 #=================== Version Detection Function ====================
 # Function: get_current_version
-# Purpose: Detects if Prometheus is installed and gets its version
-# Returns: Current version number or "not_installed"
+# Purpose: Detects the currently installed Prometheus version
+# Parameters: None
+# Returns: Current version string or "not_installed"
 get_current_version() {
     # check if prometheus command exists and is executable then redirect errors/output(2>&1) to /dev/null.
     if command -v prometheus >/dev/null 2>&1; then
@@ -192,11 +214,11 @@ get_current_version() {
 
 
 #=================== Download and Verification Functions ====================
-# Purpose: Handle secure download and verification of Prometheus binary
+# Function: download_from_url
+# Purpose: Downloads a file from a given URL using curl
 # Parameters:
-#   $1 (url): URL to download the file from
-#   $2 (file): Name of the file to save
-# Description: Downloads both the binary and its checksum file
+#   $1 (download_url): URL to download from
+#   $2 (output_file_name): Name of the output file
 # Returns: "success" or "failed"
 download_from_url() {
     local download_url="$1"
@@ -221,11 +243,12 @@ download_from_url() {
 
 
 #=================== Checksum Verification Functions ====================
+# Function: verify_checksum
+# Purpose: Verifies the SHA256 checksum of a downloaded file
 # Parameters:
-#   $1 (file): File to verify
-#   $2 (checksum_file): File containing checksums
+#   $1 (prometheus_compressed_file): Name of the downloaded file 
+#   $2 (checksum_file): Name of the checksum file
 # Returns: "success", "failed", or "not_found"
-# Description: Verifies the SHA256 checksum of downloaded file
 verify_checksum() {
     local prometheus_compressed_file="$1"
     local checksum_file="$2"
@@ -262,8 +285,10 @@ verify_checksum() {
 
 
 #=================== Port Input Function ====================
-# Purpose: Prompt user for custom port or use default
-# Returns: Selected port number
+# Function: get_port_from_user
+# Purpose: Prompts user for custom port input with validation
+# Parameters: None
+# Returns:  Valid port number (default 9090 if none provided)
 get_port_from_user(){
     local port=""
     read -p "Enter custom port between 2000 and 65535 or press Enter for [default: 9090]: " port
@@ -282,9 +307,12 @@ get_port_from_user(){
 } # end of: get_port_from_user function
 
 #=================== Requirements Check Function ====================
-# Purpose: Ensure script prerequisites are met
+# Function: check_requirements
+# Purpose: Ensures script is run with root privileges and required 
+# dependencies are installed
 # Parameters:
 #   $1 (installation_method): Installation method ("github" or "local")
+# Returns: None 
 check_requirements(){
     local installation_method="$1"
 
@@ -311,10 +339,13 @@ check_requirements(){
 } # end of: check_requirements function
 
 #=================== Version Comparison Function ====================
-# Purpose: Compare current and target versions, prompt for reinstallation if same
+# Function: compare_versions
+# Purpose: Compares current and target Prometheus versions and prompts
+# for reinstallation if they match
 # Parameters:
 #   $1 (current_version): Currently installed version
 #   $2 (version_to_install): Version intended for installation
+# Returns: None
 compare_versions() {
     local current_version="$1"
     local version_to_install="$2"
@@ -344,7 +375,6 @@ compare_versions() {
 ####################################################################################
 #                                 Start of Script
 ####################################################################################
-
 
 # default installation method is from github
 INSTALLATION_METHOD="github"
@@ -385,8 +415,6 @@ elif [[ "${1:-}" == "--purge" || "${1:-}" == "-p" ]]; then
 # Usage: bash  ./install-prometheus.sh --uninstall
 elif [[ "${1:-}" == "--uninstall" || "${1:-}" == "-u" ]]; then
     # just uninstall but keep data
-
-
     uninstall_result=$(remove_old_installation "uninstall")
 
     info "Removale function returned: $uninstall_result"
@@ -684,12 +712,7 @@ chmod 640 /opt/monitoring/prometheus/log/error.log
 #===================================================================================
 #                          Systemd Service Configuration
 #===================================================================================
-# Purpose: Create systemd service file for Prometheus
-# File: /etc/systemd/system/prometheus.service
-# Description: Configures Prometheus as a system service with proper
-#             dependencies, restart policies, and security settings
-#===================================================================================
-
+# Create systemd service file for Prometheus
 
 # for older systemd versions that do not support 'StandardError=append:path'.
 # < v240 (e.g., Ubuntu 18.04, CentOS 7)
@@ -759,11 +782,7 @@ EOF
 #===================================================================================
 #                              Service Activation
 #===================================================================================
-# Initialize and start Prometheus service
-# 1. Reload systemd to recognize new service file
-# 2. Enable service to start on boot
-# 3. Start the service
-# 4. Display service status
+info "Enabling and starting Prometheus service..."
 systemctl daemon-reload
 systemctl enable prometheus.service
 systemctl start prometheus.service
