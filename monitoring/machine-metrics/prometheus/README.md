@@ -7,8 +7,6 @@
 
 #### **Tested On**: Ubuntu 24.04 server.
 
-![](./images/prometheus-system-architecture-and-how-it-works.svg)
-
 ---
 # Download Script:
 ```bash
@@ -47,3 +45,6 @@ bash ./install-prometheus.sh --purge
 ```
 
 > Note: The script offers to backup existing installation before purge.
+
+![](./images/prometheus-system-architecture-and-how-it-works.svg)
+
