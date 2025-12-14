@@ -46,6 +46,7 @@ bash ./install-prometheus.sh --purge
 
 > Note: The script offers to backup existing installation before purge.
 
+---
 # System Architecture:
 ![](./images/prometheus-system-architecture-and-how-it-works.svg)
 
